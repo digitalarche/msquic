@@ -635,6 +635,11 @@ if(QUIC_CODE_CHECK)
     endif()
 endif()
 
+set (MI_OVERRIDE OFF)
+set (MI_BUILD_OBJECT OFF)
+set (MI_BUILD_SHARED OFF)
+set (MI_INTERPOSE OFF)
+set (MI_BUILD_TESTS OFF)
 add_subdirectory(submodules/mimalloc)
 
 add_subdirectory(src/inc)

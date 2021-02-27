@@ -37,6 +37,8 @@ if (POLICY CMP0111)
     cmake_policy(SET CMP0111 NEW)
 endif()
 
+set (CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+
 project(msquic)
 
 # Set a default build type if none was specified

@@ -177,6 +177,7 @@ function Start-Executable {
         } else {
             $pinfo.FileName = $Path
             $pinfo.Arguments = $Arguments
+            $pinfo.Environment.Add("MIMALLOC_SHOW_STATS", "1")
             # Enable WER dump collection.
             New-ItemProperty -Path $WerDumpRegPath -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
             New-ItemProperty -Path $WerDumpRegPath -Name DumpFolder -PropertyType ExpandString -Value $LogDir -Force | Out-Null

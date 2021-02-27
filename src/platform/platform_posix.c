@@ -142,9 +142,14 @@ CxPlatSystemUnload(
 {
 }
 
+typedef struct SizeCountPair {
+    uint64_t Size;
+    uint64_t Count;
+} SizeCountPair;
+
 typedef struct TagMapEntry {
     uint32_t Tag;
-    uint64_t Sizes[20];
+    SizeCountPair Sizes[20];
     uint32_t CurrentSizeCount;
 } TagMapEntry;
 
@@ -189,14 +194,14 @@ CxPlatUninitialize(
 
     CxPlatLockUninitialize(&StateLock);
 
-    printf("Tags:\n");
+    printf("Tags:\tSize(Count)\n");
 
     for (uint32_t TagCount = 0; TagCount < AllocatedTags.CurrentCount; TagCount++) {
         // Manually print out tag
         uint32_t Tag = AllocatedTags.Tags[TagCount].Tag;
         printf("%c%c%c%c\t", Tag & 0xFF, (Tag >> 8) & 0xFF, (Tag >> 16) & 0xFF, (Tag >> 24) & 0xFF);
         for (uint32_t SizeCount = 0; SizeCount < AllocatedTags.Tags[TagCount].CurrentSizeCount; SizeCount++) {
-            printf("%d\t", (uint32_t)AllocatedTags.Tags[TagCount].Sizes[SizeCount]);
+            printf("%llu(%llu)\t", AllocatedTags.Tags[TagCount].Sizes[SizeCount].Size, AllocatedTags.Tags[TagCount].Sizes[SizeCount].Count);
         }
         printf("\n");
     }
@@ -217,13 +222,15 @@ CxPlatAlloc(
         }
         // See if size exists
         for (uint32_t SizeCount = 0; SizeCount < AllocatedTags.Tags[TagCount].CurrentSizeCount; SizeCount++) {
-            if (AllocatedTags.Tags[TagCount].Sizes[SizeCount] == ByteCount) {
+            if (AllocatedTags.Tags[TagCount].Sizes[SizeCount].Size == ByteCount) {
+                AllocatedTags.Tags[TagCount].Sizes[SizeCount].Count++;
                 goto DoneWithTagCheck;
             }
         }
         // Size not found, try to add
         if (AllocatedTags.Tags[TagCount].CurrentSizeCount < 20) {
-            AllocatedTags.Tags[TagCount].Sizes[AllocatedTags.Tags[TagCount].CurrentSizeCount] = ByteCount;
+            AllocatedTags.Tags[TagCount].Sizes[AllocatedTags.Tags[TagCount].CurrentSizeCount].Size = ByteCount;
+            AllocatedTags.Tags[TagCount].Sizes[AllocatedTags.Tags[TagCount].CurrentSizeCount].Count = 1;
             AllocatedTags.Tags[TagCount].CurrentSizeCount++;
         }
         goto DoneWithTagCheck;
@@ -233,7 +240,8 @@ CxPlatAlloc(
     if (AllocatedTags.CurrentCount < 100) {
         AllocatedTags.Tags[AllocatedTags.CurrentCount].Tag = Tag;
         AllocatedTags.Tags[AllocatedTags.CurrentCount].CurrentSizeCount = 1;
-        AllocatedTags.Tags[AllocatedTags.CurrentCount].Sizes[0] = ByteCount;
+        AllocatedTags.Tags[AllocatedTags.CurrentCount].Sizes[0].Size = ByteCount;
+        AllocatedTags.Tags[AllocatedTags.CurrentCount].Sizes[0].Count = 1;
         AllocatedTags.CurrentCount++;
     }
 

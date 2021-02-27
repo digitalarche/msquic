@@ -197,7 +197,7 @@ CxPlatUninitialize(
         uint32_t Tag = AllocatedTags.Tags[TagCount].Tag;
         printf("%c%c%c%c\t", Tag & 0xFF, (Tag >> 8) & 0xFF, (Tag >> 16) & 0xFF, (Tag >> 24) & 0xFF);
         for (uint32_t SizeCount = 0; SizeCount < AllocatedTags.Tags[TagCount].CurrentSizeCount; SizeCount++) {
-            printf("%d\t", AllocatedTags.Tags[TagCount].Sizes[SizeCount]);
+            printf("%d\t", (uint32_t)AllocatedTags.Tags[TagCount].Sizes[SizeCount]);
         }
         printf("\n");
     }

@@ -65,10 +65,7 @@ typedef struct CX_PLATFORM {
 
 typedef struct CX_PLATFORM {
 
-    //
-    // Heap used for all allocations.
-    //
-    HANDLE Heap;
+    void* Reserved; // Nothing right now.
 
 } CX_PLATFORM;
 

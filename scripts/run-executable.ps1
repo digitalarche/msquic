@@ -191,7 +191,7 @@ function Start-Executable {
             }
         } else {
             $pinfo.FileName = "bash"
-            $pinfo.Arguments = "-c `"ulimit -c unlimited && LSAN_OPTIONS=report_objects=1 ASAN_OPTIONS=disable_coredump=0:abort_on_error=1 $($Path) $($Arguments) && echo Done`""
+            $pinfo.Arguments = "-c `"ulimit -c unlimited && LSAN_OPTIONS=report_objects=1 ASAN_OPTIONS=disable_coredump=0:abort_on_error=1 MIMALLOC_SHOW_STATS=1 $($Path) $($Arguments) && echo Done`""
             $pinfo.WorkingDirectory = $LogDir
         }
     }

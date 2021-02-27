@@ -14,6 +14,7 @@ Environment:
 --*/
 
 #include "platform_internal.h"
+#include "mimalloc.h"
 #ifdef QUIC_CLOG
 #include "platform_winuser.c.clog.h"
 #endif
@@ -36,7 +37,6 @@ CxPlatSystemLoad(
 #endif
 
     (void)QueryPerformanceFrequency((LARGE_INTEGER*)&CxPlatPerfFreq);
-    CxPlatform.Heap = NULL;
 
     QuicTraceLogInfo(
         WindowsUserLoaded,
@@ -291,12 +291,6 @@ CxPlatInitialize(
     MEMORYSTATUSEX memInfo;
     memInfo.dwLength = sizeof(MEMORYSTATUSEX);
 
-    CxPlatform.Heap = HeapCreate(0, 0, 0);
-    if (CxPlatform.Heap == NULL) {
-        Status = QUIC_STATUS_OUT_OF_MEMORY;
-        goto Error;
-    }
-
     if (!CxPlatProcessorInfoInit()) {
         QuicTraceEvent(
             LibraryError,
@@ -331,13 +325,6 @@ CxPlatInitialize(
 
 Error:
 
-    if (QUIC_FAILED(Status)) {
-        if (CxPlatform.Heap) {
-            HeapDestroy(CxPlatform.Heap);
-            CxPlatform.Heap = NULL;
-        }
-    }
-
     return Status;
 }
 
@@ -348,15 +335,12 @@ CxPlatUninitialize(
     )
 {
     CxPlatTlsLibraryUninitialize();
-    CXPLAT_DBG_ASSERT(CxPlatform.Heap);
     CXPLAT_FREE(CxPlatNumaMasks, QUIC_POOL_PLATFORM_PROC);
     CxPlatNumaMasks = NULL;
     CXPLAT_FREE(CxPlatProcessorGroupOffsets, QUIC_POOL_PLATFORM_PROC);
     CxPlatProcessorGroupOffsets = NULL;
     CXPLAT_FREE(CxPlatProcessorInfo, QUIC_POOL_PLATFORM_PROC);
     CxPlatProcessorInfo = NULL;
-    HeapDestroy(CxPlatform.Heap);
-    CxPlatform.Heap = NULL;
     QuicTraceLogInfo(
         WindowsUserUninitialized,
         "[ dll] Uninitialized");
@@ -436,18 +420,20 @@ CxPlatAlloc(
     _In_ uint32_t Tag
     )
 {
-    CXPLAT_DBG_ASSERT(CxPlatform.Heap);
 #ifdef QUIC_RANDOM_ALLOC_FAIL
     uint8_t Rand; CxPlatRandom(sizeof(Rand), &Rand);
     if ((Rand % 100) == 1) return NULL;
 #else
 #ifdef DEBUG
-    void* Alloc = HeapAlloc(CxPlatform.Heap, 0, ByteCount + AllocOffset);
+    void* Alloc = mi_malloc(ByteCount + AllocOffset);
+    if (Alloc == NULL) {
+        return NULL;
+    }
     *((uint32_t*)Alloc) = Tag;
     return (void*)((uint8_t*)Alloc + AllocOffset);
 #else
     UNREFERENCED_PARAMETER(Tag);
-    return HeapAlloc(CxPlatform.Heap, 0, ByteCount);
+    return mi_malloc(ByteCount);
 #endif
 #endif // QUIC_RANDOM_ALLOC_FAIL
 }
@@ -462,10 +448,10 @@ CxPlatFree(
     void* ActualAlloc = (void*)((uint8_t*)Mem - AllocOffset);
     uint32_t TagToCheck = *((uint32_t*)ActualAlloc);
     CXPLAT_DBG_ASSERT(TagToCheck == Tag);
-    (void)HeapFree(CxPlatform.Heap, 0, ActualAlloc);
+    mi_free(ActualAlloc);
 #else
     UNREFERENCED_PARAMETER(Tag);
-    (void)HeapFree(CxPlatform.Heap, 0, Mem);
+    mi_free(Mem);
 #endif
 }
 

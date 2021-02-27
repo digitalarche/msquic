@@ -12,3 +12,6 @@
 [submodule "submodules/wil"]
 	path = submodules/wil
 	url = https://github.com/microsoft/wil
+[submodule "submodules/mimalloc"]
+	path = submodules/mimalloc
+	url = https://github.com/microsoft/mimalloc

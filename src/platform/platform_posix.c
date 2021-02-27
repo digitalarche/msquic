@@ -16,6 +16,7 @@ Environment:
 #include "platform_internal.h"
 #include "quic_platform.h"
 #include "quic_platform_dispatch.h"
+#include "mimalloc.h"
 #include "quic_trace.h"
 #ifdef CX_PLATFORM_LINUX
 #include <sys/syscall.h>
@@ -181,9 +182,9 @@ CxPlatAlloc(
 #else
 #ifdef QUIC_RANDOM_ALLOC_FAIL
     uint8_t Rand; CxPlatRandom(sizeof(Rand), &Rand);
-    return ((Rand % 100) == 1) ? NULL : malloc(ByteCount);
+    return ((Rand % 100) == 1) ? NULL : mi_malloc(ByteCount);
 #else
-    return malloc(ByteCount);
+    return mi_malloc(ByteCount);
 #endif // QUIC_RANDOM_ALLOC_FAIL
 #endif // CX_PLATFORM_DISPATCH_TABLE
 }
@@ -198,7 +199,7 @@ CxPlatFree(
 #ifdef CX_PLATFORM_DISPATCH_TABLE
     PlatDispatch->Free(Mem);
 #else
-    free(Mem);
+    mi_free(Mem);
 #endif
 }
 

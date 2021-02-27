@@ -78,6 +78,8 @@ set_property(TARGET platform PROPERTY FOLDER "libraries")
 
 target_include_directories(platform PRIVATE ${EXTRA_PLATFORM_INCLUDE_DIRECTORIES})
 
+target_link_libraries(platform PUBLIC mimalloc-static)
+
 if(QUIC_TLS STREQUAL "openssl")
     target_link_libraries(platform PUBLIC OpenSSL)
 elseif(QUIC_TLS STREQUAL "mitls")

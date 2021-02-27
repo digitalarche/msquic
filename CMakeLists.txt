@@ -635,6 +635,8 @@ if(QUIC_CODE_CHECK)
     endif()
 endif()
 
+add_subdirectory(submodules/mimalloc)
+
 add_subdirectory(src/inc)
 
 # Product code

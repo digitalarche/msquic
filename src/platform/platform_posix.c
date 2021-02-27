@@ -68,6 +68,8 @@ CxPlatSystemLoad(
     void
     )
 {
+    CxPlatform.Reserved = NULL;
+
     //
     // Following code is modified from coreclr.
     // https://github.com/dotnet/coreclr/blob/ed5dc831b09a0bfed76ddad684008bebc86ab2f0/src/pal/src/misc/tracepointprovider.cpp#L106
@@ -141,6 +143,20 @@ CxPlatSystemUnload(
 {
 }
 
+typedef struct TagMapEntry {
+    uint32_t Tag;
+    uint64_t Sizes[20];
+    uint32_t CurrentSizeCount;
+} TagMapEntry;
+
+typedef struct TagMap {
+    TagMapEntry Tags[100];
+    uint32_t CurrentCount;
+} TagMap;
+
+static CXPLAT_LOCK StateLock;
+static TagMap AllocatedTags;
+
 QUIC_STATUS
 CxPlatInitialize(
     void
@@ -155,6 +171,9 @@ CxPlatInitialize(
     }
 #endif
 
+    CxPlatLockInitialize(&StateLock);
+    CxPlatZeroMemory(&AllocatedTags, sizeof(AllocatedTags));
+
     CxPlatTotalMemory = 0x40000000; // TODO - Hard coded at 1 GB. Query real value.
 
     return QUIC_STATUS_SUCCESS;
@@ -168,6 +187,20 @@ CxPlatUninitialize(
 #ifndef CX_PLATFORM_DISPATCH_TABLE
     close(RandomFd);
 #endif
+
+    CxPlatLockUninitialize(&StateLock);
+
+    printf("Tags:\n");
+
+    for (uint32_t TagCount = 0; TagCount < AllocatedTags.CurrentCount; TagCount++) {
+        // Manually print out tag
+        uint32_t Tag = AllocatedTags.Tags[TagCount].Tag;
+        printf("%c%c%c%c\t", Tag & 0xFF, (Tag >> 8) & 0xFF, (Tag >> 16) & 0xFF, (Tag >> 24) & 0xFF);
+        for (uint32_t SizeCount = 0; SizeCount < AllocatedTags.Tags[TagCount].CurrentSizeCount; SizeCount++) {
+            printf("%d\t", AllocatedTags.Tags[TagCount].Sizes[SizeCount]);
+        }
+        printf("\n");
+    }
 }
 
 void*
@@ -176,7 +209,40 @@ CxPlatAlloc(
     _In_ uint32_t Tag
     )
 {
-    UNREFERENCED_PARAMETER(Tag);
+    CxPlatLockAcquire(&StateLock);
+
+    // Set if list already contains tag
+    for (uint32_t TagCount = 0; TagCount < AllocatedTags.CurrentCount; TagCount++) {
+        if (AllocatedTags.Tags[TagCount].Tag != Tag) {
+            continue;
+        }
+        // See if size exists
+        for (uint32_t SizeCount = 0; SizeCount < AllocatedTags.Tags[TagCount].CurrentSizeCount; SizeCount++) {
+            if (AllocatedTags.Tags[TagCount].Sizes[SizeCount] == ByteCount) {
+                goto DoneWithTagCheck;
+            }
+        }
+        // Size not found, try to add
+        if (AllocatedTags.Tags[TagCount].CurrentSizeCount < 20) {
+            AllocatedTags.Tags[TagCount].Sizes[AllocatedTags.Tags[TagCount].CurrentSizeCount] = ByteCount;
+            AllocatedTags.Tags[TagCount].CurrentSizeCount++;
+        }
+        goto DoneWithTagCheck;
+    }
+
+    // Tag not found, try to add it
+    if (AllocatedTags.CurrentCount < 100) {
+        AllocatedTags.Tags[AllocatedTags.CurrentCount].Tag = Tag;
+        AllocatedTags.Tags[AllocatedTags.CurrentCount].CurrentSizeCount = 1;
+        AllocatedTags.Tags[AllocatedTags.CurrentCount].Sizes[0] = ByteCount;
+        AllocatedTags.CurrentCount++;
+    }
+
+DoneWithTagCheck:
+
+    CxPlatLockRelease(&StateLock);
+
+
 #ifdef CX_PLATFORM_DISPATCH_TABLE
     return PlatDispatch->Alloc(ByteCount);
 #else

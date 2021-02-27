@@ -344,6 +344,8 @@ CxPlatUninitialize(
     QuicTraceLogInfo(
         WindowsUserUninitialized,
         "[ dll] Uninitialized");
+
+    mi_stats_print(NULL);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)

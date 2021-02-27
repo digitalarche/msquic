@@ -68,7 +68,6 @@ CxPlatSystemLoad(
     void
     )
 {
-    CxPlatform.Reserved = NULL;
 
     //
     // Following code is modified from coreclr.

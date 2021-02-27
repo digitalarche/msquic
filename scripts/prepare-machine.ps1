@@ -95,6 +95,9 @@ if ($InitSubmodules) {
         # Remove OpenSSL and Everest
         git rm submodules/everest
         git rm submodules/openssl
+    } else {
+        git submodule init submodules/mimalloc
+        git submodule update
     }
 
     if (!$Extra.Contains("-DisableTest")) {
